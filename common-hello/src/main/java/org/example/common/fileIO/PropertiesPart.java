@@ -20,7 +20,7 @@ public class PropertiesPart {
 
     @Test
     public void testRead() throws IOException {
-        //
+        // 创建Properties
         Properties properties = new Properties();
         // 加载配置文件
         properties.load(Files.newInputStream(Paths.get("src/main/resources/dataSource.properties")));
