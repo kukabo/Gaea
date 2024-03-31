@@ -1,0 +1,5 @@
+
+ hello, this is BufferedWriterPart1
+ hello, this is BufferedWriterPart2
+ hello, this is BufferedWriterPart3
+ hello, this is BufferedWriterPart3
