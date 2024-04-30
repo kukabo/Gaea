@@ -24,4 +24,8 @@ public class SwapTestBean {
         age2 = tem;
         System.out.println(age1 +"----"+ age2);
     }
+
+    public void hi() {
+        System.out.println("hi from SwapTestBean");
+    }
 }

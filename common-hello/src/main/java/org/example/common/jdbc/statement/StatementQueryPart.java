@@ -21,7 +21,7 @@ public class StatementQueryPart {
         *             连接【验证（检查文件内部结构） -> 准备（类变量分配地址及设置默认初始值） -> 解析（符号引用替换直接引用；触发静态代码块）】
         *             初始化【静态属性赋真实值】
         * */
-        //DriverManager.registerDriver(new Driver());
+        DriverManager.registerDriver(new Driver());
         Class.forName("com.mysql.cj.jdbc.Driver");//可以读配置，不改代码完成数据库切换
         //2、获取连接
         /*

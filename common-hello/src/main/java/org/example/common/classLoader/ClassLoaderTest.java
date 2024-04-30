@@ -52,7 +52,7 @@ public class ClassLoaderTest {
          * 通过类获取类加载器
          * 通过实例获取类对象再获取类加载器
          * */
-        System.out.println("-------类加载器2中获取方式-------");
+        System.out.println("-------获取到 类加载器 的2种方式-------");
         ClassLoader classLoader2 = SwapTestBean.class.getClassLoader();
         ClassLoader classLoader3 = swapTestBean1.getClass().getClassLoader();
 
