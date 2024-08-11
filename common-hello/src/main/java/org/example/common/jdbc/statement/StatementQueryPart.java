@@ -28,7 +28,7 @@ public class StatementQueryPart {
         * Java程序和数据库mysql建立连接
         * IP 端口 用户名 密码root
         * */
-        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root");
+        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root@mysql");
         //3、创建statement，可以发送sql语句到数据库并且获取返回结果
         /*
         * statement 适合执行静态sql，缺点是容易出现 sql注入攻击

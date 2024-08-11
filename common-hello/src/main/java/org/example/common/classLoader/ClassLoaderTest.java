@@ -1,6 +1,5 @@
 package org.example.common.classLoader;
 
-import org.example.common.SwapTestBean;
 import org.example.common.classLoader.classInitOrder.ChildClass;
 import org.example.common.classLoader.classInitOrder.ParentClass;
 

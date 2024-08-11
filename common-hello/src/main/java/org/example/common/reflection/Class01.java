@@ -2,13 +2,13 @@ package org.example.common.reflection;
 
 //演示 Class的方法，和获取 Class对象的几种方式
 
-import org.example.common.SwapTestBean;
+import org.example.common.classLoader.SwapTestBean;
 
 public class Class01 {
 
     public static void main(String[] args) throws ClassNotFoundException {
         //方式 1：Class.forName()，应用场景多用于 配置文件的全类名加载
-        String classPath = "org.example.common.SwapTestBean";//通过读取配置文件获取 s值
+        String classPath = "org.example.common.classLoader.SwapTestBean";//通过读取配置文件获取 s值
         Class<?> cls1 = Class.forName(classPath);
 
         //方式 2：类名.class，应用场景多用于 参数传递

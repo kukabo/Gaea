@@ -11,28 +11,9 @@ import java.util.Map;
 public class PSCURDPart {
 
     @Test
-    public void testInsert() throws ClassNotFoundException, SQLException {
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root");
-        String sql = "insert into t_user (account, password, nickname) values (?, ?, ?);";
-        PreparedStatement preparedStatement = connection.prepareStatement(sql);
-        preparedStatement.setObject(1, "test");
-        preparedStatement.setObject(2, "test");
-        preparedStatement.setObject(3, "二狗子");
-        int i = preparedStatement.executeUpdate();
-        if (i > 0) {
-            System.out.println("insert success.");
-        } else {
-            System.out.println("insert fail");
-        }
-        preparedStatement.close();
-        connection.close();
-    }
-
-    @Test
     public void testQuery() throws ClassNotFoundException, SQLException {
         Class.forName("com.mysql.cj.jdbc.Driver");
-        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root");
+        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root@mysql");
         String sql = "select id, account, password, nickname from t_user;";
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
 
@@ -67,45 +48,29 @@ public class PSCURDPart {
         connection.close();
     }
 
-    /**
-     * 批量插入
-     * 1、rewriteBatchedStatements=true
-     * 2、必须是values，且不能有分号
-     * 3、addBatch
-     * 4、executeBatch
-     * @throws ClassNotFoundException
-     * @throws SQLException
-     */
-
     @Test
-    public void testBatchInsert() throws ClassNotFoundException, SQLException {
+    public void selectTest() throws SQLException, ClassNotFoundException {
         Class.forName("com.mysql.cj.jdbc.Driver");
-        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea?rewriteBatchedStatements=true", "root", "root");
-        String sql = "insert into t_user (account, password, nickname) values (?, ?, ?)";
+        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root@mysql");
+        //3、编写 sql
+        String sql = "select * from t_user where account = ?;";
+        //4、创建preparedStatement，会对 sql预编译，知道有多少个条件，防止 sql注入
         PreparedStatement preparedStatement = connection.prepareStatement(sql);
-
-        long start = System.currentTimeMillis();
-
-        for (int i = 0; i < 1000; i++) {
-
-            preparedStatement.setObject(1, "account"+i);
-            preparedStatement.setObject(2, "password"+i);
-            preparedStatement.setObject(3, "nickname"+i);
-
-            preparedStatement.addBatch();//追加 values后面
-
+        //5、传入动态值，执行 sql，获取结果
+        preparedStatement.setString(1, "root");
+        ResultSet resultSet = preparedStatement.executeQuery();
+        //6、进行结果解析
+        while (resultSet.next()) {//看下有没有下一行，有就取数据
+            int id = resultSet.getInt("id");
+            String account = resultSet.getString("account");
+            String password = resultSet.getString("password");
+            String nickname = resultSet.getString("nickname");
+            System.out.println(id + "--" + account + "--" + password + "--" + nickname);
         }
-        long end = System.currentTimeMillis();
-
-        System.out.println(end - start);
-
-        preparedStatement.executeBatch();//一次性执行
-
-        //关闭资源
+        //6、关闭连接
+        resultSet.close();
         preparedStatement.close();
         connection.close();
     }
-
-    //todo，主键回写和主键值获取
 
 }

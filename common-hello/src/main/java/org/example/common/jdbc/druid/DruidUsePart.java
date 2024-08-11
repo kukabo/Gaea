@@ -24,7 +24,7 @@ public class DruidUsePart {
         //src下的资源文件可以用类加载器提供的方法
         InputStream resourceAsStream = DruidUsePart.class.getClassLoader().getResourceAsStream("dataSource.properties");
 
-        properties. load(resourceAsStream);
+        properties.load(resourceAsStream);
 
         //创建连接池
         DataSource dataSource = DruidDataSourceFactory.createDataSource(properties);

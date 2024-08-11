@@ -17,7 +17,7 @@ public class BankService {
         //注册驱动
         Class.forName("com.mysql.cj.jdbc.Driver");
         //建立连接
-        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root");
+        Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/gaea", "root", "root@mysql");
 
         BankDao bankDao = new BankDao();
 

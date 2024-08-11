@@ -15,22 +15,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.3.6.RELEASE</version>
-        <relativePath />
-    </parent>
-
-    <dependencies>
-
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-    </dependencies>
-
     <!--按需导入-->
     <dependencyManagement>
         <dependencies>
@@ -47,6 +31,21 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>druid</artifactId>
                 <version>1.2.8</version>
+            </dependency>
+
+            <!-- 在Maven项目的pom.xml中添加JUnit依赖 -->
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.13.2</version>
+                <!--<scope>test</scope>-->
+            </dependency>
+
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>1.18.24</version>
+                <scope>provided</scope>
             </dependency>
 
         </dependencies>

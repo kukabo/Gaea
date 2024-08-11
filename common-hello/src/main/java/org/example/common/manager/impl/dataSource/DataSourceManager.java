@@ -1,17 +1,15 @@
-package org.example.common.utils;
+package org.example.common.manager.impl.dataSource;
 
 
 import com.alibaba.druid.pool.DruidDataSourceFactory;
+import org.example.common.manager.Manager;
+import org.example.common.utils.ConfigUtil;
+
 import javax.sql.DataSource;
-import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Properties;
 
 /*
-* 工具类的方法，推荐写成静态
 *
 * 实现
 *   属性 连接池对象，只实例化一次
@@ -25,25 +23,15 @@ import java.util.Properties;
 * ThreadLocal
 *   把连接放在线程本地变量里，通过getConnection()可以获取到同一个连接，保证 事务都是在同一个连接里的
 * */
-public class JdbcUtil {
+public class DataSourceManager implements Manager {
 
     private static final DataSource dataSource;
 
     private static final ThreadLocal<Connection> threadLocal = new ThreadLocal<>();
 
     static {
-        Properties properties = new Properties();
-
-        InputStream resourceAsStream = JdbcUtil.class.getClassLoader().getResourceAsStream("dataSource.properties");
-
         try {
-            properties.load(resourceAsStream);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        try {
-            dataSource = DruidDataSourceFactory.createDataSource(properties);
+            dataSource = DruidDataSourceFactory.createDataSource(ConfigUtil.getProperties());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
