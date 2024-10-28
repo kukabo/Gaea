@@ -15,7 +15,7 @@
         <module>server-hello</module>
         <module>service-hello</module>
         <module>third-hello</module>
-        <module>parent-hello</module>
+        <module>gaea-pom-manager</module>
     </modules>
 
     <properties>

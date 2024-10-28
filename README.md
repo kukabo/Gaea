@@ -8,4 +8,4 @@
 3. `service-hello`：业务逻辑代码
 4. `third-hello`：缓存、消息队列等中间件
 5. `web-hello`：web端，用户访问
-6. `parent-hello`：管理 jar包，是所有模块的父引用
+6. `gaea-pom-manager`：管理 jar包，是所有模块的父引用

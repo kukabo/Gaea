@@ -5,21 +5,30 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example.musan</groupId>
-    <artifactId>parent-hello</artifactId>
+    <artifactId>gaea-pom-manager</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <!--按需导入-->
     <dependencyManagement>
         <dependencies>
+            <!-- spring context依赖
+             当引入此依赖后，表示将Spring的基础依赖引入了-->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-context</artifactId>
+                <version>5.2.5.RELEASE</version>
+            </dependency>
 
-           <!--数据库驱动-->
+            <!-- junit依赖
+             测试依赖，生效范围是test，编译和打包不会引入此包 -->
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.13.2</version>
+                <!--<scope>test</scope>-->
+            </dependency>
+
+            <!--数据库驱动-->
             <dependency>
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
@@ -31,14 +40,6 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>druid</artifactId>
                 <version>1.2.8</version>
-            </dependency>
-
-            <!-- 在Maven项目的pom.xml中添加JUnit依赖 -->
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.13.2</version>
-                <!--<scope>test</scope>-->
             </dependency>
 
             <dependency>

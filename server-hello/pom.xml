@@ -9,9 +9,9 @@
 
     <parent>
         <groupId>org.example.musan</groupId>
-        <artifactId>parent-hello</artifactId>
+        <artifactId>gaea-pom-manager</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../parent-hello/pom.xml</relativePath> <!-- 父工程 pom.xml 的相对路径-->
+        <relativePath>../gaea-pom-manager/pom.xml</relativePath> <!-- 父工程 pom.xml 的相对路径-->
     </parent>
 
     <properties>
