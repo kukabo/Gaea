@@ -4,7 +4,7 @@ import org.junit.Test;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class BatchDataTest {
+public class BatchDataJDBCTest {
 
     @Test
     public void batchInsertData() throws SQLException {
