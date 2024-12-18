@@ -1,6 +1,6 @@
-package org.example.common.classLoader.classInitOrder;
+package org.example.common.bean.classLoader;
 
-public class ParentClass {
+public class ParentClassBean {
 
     //常量，准备阶段
     public static final int a = 10;
@@ -26,7 +26,7 @@ public class ParentClass {
     }
 
     //构造器
-    public ParentClass() {
+    public ParentClassBean() {
         System.out.print("父类--构造器");
         System.out.println("i=" + i);
         i++;

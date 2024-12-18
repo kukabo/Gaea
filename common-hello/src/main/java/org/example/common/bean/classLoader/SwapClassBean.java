@@ -1,9 +1,9 @@
-package org.example.common.classLoader;
+package org.example.common.bean.classLoader;
 
 import lombok.Data;
 
 @Data
-public class SwapTestBean {
+public class SwapClassBean {
     public static int a = 10;
     public static String s = "hello";
 
@@ -26,6 +26,6 @@ public class SwapTestBean {
     }
 
     public void hi() {
-        System.out.println("hi from SwapTestBean");
+        System.out.println("hi from SwapClassBean");
     }
 }

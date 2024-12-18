@@ -1,7 +1,8 @@
 package org.example.common.classLoader;
 
-import org.example.common.classLoader.classInitOrder.ChildClass;
-import org.example.common.classLoader.classInitOrder.ParentClass;
+import org.example.common.bean.classLoader.ChildClassBean;
+import org.example.common.bean.classLoader.ParentClassBean;
+import org.example.common.bean.classLoader.SwapClassBean;
 
 public class ClassLoaderTest {
     public static void main(String[] args) {
@@ -10,25 +11,25 @@ public class ClassLoaderTest {
          * 类变量：同一个类的不同实例变量是不一样的，但类变量是同一个
          * */
         System.out.println("-------同一个类的不同实例变量是不一样的，但类变量是同一个-------");
-        SwapTestBean swapTestBean = new SwapTestBean();
+        SwapClassBean swapClassBean = new SwapClassBean();
         String name1= "111";
         String name2= "222";
-        swapTestBean.swapString(name1, name2);
+        swapClassBean.swapString(name1, name2);
         System.out.println(name1 +"----"+ name2);
 
         Integer age1 = 111;
         Integer age2 = 222;
-        swapTestBean.swapInteger(age1, age2);
+        swapClassBean.swapInteger(age1, age2);
         System.out.println(age1 +"----"+ age2);
 
-        swapTestBean.a ++ ;
-        swapTestBean.s = swapTestBean.s + "world";
-        System.out.println(swapTestBean.a);
-        System.out.println(swapTestBean.s);
+        swapClassBean.a ++ ;
+        swapClassBean.s = swapClassBean.s + "world";
+        System.out.println(swapClassBean.a);
+        System.out.println(swapClassBean.s);
 
-        SwapTestBean swapTestBean1 = new SwapTestBean();
-        System.out.println(swapTestBean1.a);
-        System.out.println(swapTestBean1.s);
+        SwapClassBean swapClassBean1 = new SwapClassBean();
+        System.out.println(swapClassBean1.a);
+        System.out.println(swapClassBean1.s);
 
         /*
         * JVM 的三个类加载器
@@ -52,8 +53,8 @@ public class ClassLoaderTest {
          * 通过实例获取类对象再获取类加载器
          * */
         System.out.println("-------获取到 类加载器 的2种方式-------");
-        ClassLoader classLoader2 = SwapTestBean.class.getClassLoader();
-        ClassLoader classLoader3 = swapTestBean1.getClass().getClassLoader();
+        ClassLoader classLoader2 = SwapClassBean.class.getClassLoader();
+        ClassLoader classLoader3 = swapClassBean1.getClass().getClassLoader();
 
         if (classLoader2.hashCode() == classLoader3.hashCode()) {
             System.out.println("classLoader2==classLoader3");
@@ -91,9 +92,9 @@ public class ClassLoaderTest {
         * 子类--构造器
         * */
         System.out.println("---------类初始化（类加载的第三个阶段）顺序，创建子类对象--------");
-        ChildClass childClass = new ChildClass();
+        ChildClassBean childClass = new ChildClassBean();
         System.out.println("---------类初始化（类加载的第三个阶段）顺序，创建父类对象--------");
-        ParentClass parentClass = new ParentClass();
+        ParentClassBean parentClassBean = new ParentClassBean();
         System.out.println("证明：类只会加载一次");
 
 

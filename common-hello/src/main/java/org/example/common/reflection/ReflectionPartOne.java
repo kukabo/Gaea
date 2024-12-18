@@ -32,7 +32,7 @@ public class ReflectionPartOne {
         //使用反射解决
         //(1)加载类，返回Class类型的对象 cls
         Class<?> cls = Class.forName(classPathName);
-        //(2)创建org.example.common.SwapTestBean 的实例对象
+        //(2)创建org.example.common.SwapClassBean 的实例对象
         Object o = cls.newInstance();
         System.out.println("o的运行类型" + o.getClass());//运行类型
         //(3)获取方法对象 method
