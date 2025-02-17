@@ -17,7 +17,7 @@ public class FunctionInterfaceTest {
                 System.out.println("hello 1");
             }
         };
-        test(myFunctionInterface);
+        myFunctionInterface.show();
 
         //方式2.直接传递匿名内部类
         test(new MyFunctionInterface() {
@@ -26,6 +26,9 @@ public class FunctionInterfaceTest {
                 System.out.println("hello 2");
             }
         });
+
+        //上面方式2等同于如下，即lambda表达式等同于一个匿名内部类
+        test(() -> System.out.println("hello 2"));
 
     }
 }
