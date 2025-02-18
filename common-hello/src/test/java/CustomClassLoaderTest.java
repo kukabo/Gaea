@@ -87,8 +87,11 @@ public class CustomClassLoaderTest {
         String filePathNew = "D:/project/ims-proj/Gaea/common-hello/target/classes";
         //需要加载的类路径
         String classPathNew = "org.example.common.bean.classLoader.Hello";
-
-        CustomBrokenClassLoader classLoader2 = new CustomBrokenClassLoader(Thread.currentThread().getContextClassLoader().getParent(), filePathNew);
+        //ExtClassLoader
+        ClassLoader extClassLoader = Thread.currentThread().getContextClassLoader().getParent();
+        System.out.println("AppClassLoader的父加载器：" + extClassLoader);
+        System.out.println();
+        CustomBrokenClassLoader classLoader2 = new CustomBrokenClassLoader(extClassLoader, filePathNew);
         Class<?> clazz2 = Class.forName(classPathNew, true, classLoader2);
         Object obj2 = clazz2.newInstance();
         System.out.println(obj2.toString());

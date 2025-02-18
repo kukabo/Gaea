@@ -7,6 +7,7 @@ import org.example.common.utils.InputStreamUtil;
  * 目的：要打破双亲委派机制
  * 场景：类A引用了类B，类A是自定义类加载器C加载，那么B也让C加载，而不是系统类加载器加载
  * 参考：https://blog.csdn.net/fuzhongmin05/article/details/125120572
+ * 类加载传导规则：JVM会选择当前类的类加载器来加载所有该类要引用的类
  * 实现：
  *  1、打破双亲委派，必须覆写loadClass方法
  *  2、核心类还是ExtClassLoader或BootStrapClassLoader加载，需要传入 ExtClassLoader
