@@ -1,8 +1,5 @@
 package org.example.common.reflection;
 
-import org.junit.Test;
-
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

@@ -42,17 +42,18 @@ public class StatementQueryPart {
 
         //4、便写sql语句，发送sql语句，获取结果
         String sql = "select * from t_user";
-        ResultSet resultSet = statement.executeQuery(sql);
+        //当调用rs.next时会一次性从服务器上取得多少行数据回来，这样在下次rs.next时，它可以直接从内存中获取出数据而不需要网络交互，提高了效率
+        ResultSet rs = statement.executeQuery(sql);
         //5、进行结果解析
-        while (resultSet.next()) {//看下有没有下一行，有就取数据
-            int id = resultSet.getInt("id");
-            String account = resultSet.getString("account");
-            String password = resultSet.getString("password");
-            String nickname = resultSet.getString("nickname");
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            String account = rs.getString("account");
+            String password = rs.getString("password");
+            String nickname = rs.getString("nickname");
             System.out.println(id + "--" + account + "--" + password + "--" + nickname);
         }
         //6、关闭连接
-        resultSet.close();
+        rs.close();
         statement.close();
         connection.close();
     }
