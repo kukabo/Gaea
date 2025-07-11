@@ -379,7 +379,7 @@ public class EvtTaskThreadTest {
          */
         private void aSyncProcessStatusAfterExecute(SlaveRecord currentSlaveRecord) {
             if (mockDataBase.searchInstanceStatus(currentSlaveRecord).equals(failStatus)) {
-                failUpdateStatusFail(currentSlaveRecord);
+                failUpdateStatusFail(currentSlaveRecord, "-aSyncProcessStatusAfterExecute");
             } else {
                 successTakeCurrentSlaveAndActiveNext(currentSlaveRecord);
             }
@@ -390,14 +390,16 @@ public class EvtTaskThreadTest {
          * 1.更新当前子业务状态为 处理失败
          * 2.主业务状态更新为 处理失败
          */
-        private void failUpdateStatusFail(SlaveRecord currentSlaveRecord) {
+        private void failUpdateStatusFail(SlaveRecord currentSlaveRecord, String methodName) {
 
             String masterName = currentSlaveRecord.masterName;
             String subName = currentSlaveRecord.subName;
+            String name = masterName + "---" + subName;
 
             String currentSlaveSubStatus = currentSlaveRecord.subStatus;
             if (!currentSlaveSubStatus.equals(activeStatus))
-                throw new RuntimeException("当前子业务状态不是处理中，无法更新子业务状态为【处理失败】");
+                throw new RuntimeException("当前子业务状态不是处理中，无法更新子业务状态为【处理失败】-" +
+                        currentSlaveSubStatus + "-" + name + methodName);
             mockDataBase.updateSubTaskStatus(masterName, subName, failStatus);
 
             mockDataBase.updateMasterStatus(masterName, failStatus);
@@ -502,7 +504,7 @@ public class EvtTaskThreadTest {
             } catch (Exception e) {
                 System.out.printf("[%s] 任务 %s-%s 处理失败: %s%n",
                         currentThread, masterName, slaveName, e.getMessage());
-                failUpdateStatusFail(slaveTask);
+                failUpdateStatusFail(slaveTask, "-executeSyncSlaveTask");
             }
         }
 
@@ -512,7 +514,7 @@ public class EvtTaskThreadTest {
         private void awaitCompletion() {
             CompletableFuture<?>[] futures = activeFutureMap.values().toArray(new CompletableFuture[0]);
             try {
-                CompletableFuture.allOf(futures).get(1, TimeUnit.MINUTES);
+                CompletableFuture.allOf(futures).get(30, TimeUnit.MINUTES);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
