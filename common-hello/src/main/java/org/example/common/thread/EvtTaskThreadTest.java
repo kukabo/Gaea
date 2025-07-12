@@ -112,11 +112,20 @@ public class EvtTaskThreadTest {
             }
         }
 
-        synchronized void updateSubTaskStatus(String masterName, String subName, String status) {
+        SlaveRecord searchSlave(String masterName, String subName) {
             MasterRecord masterRecord = searchMaser(masterName);
             for (SlaveRecord slaveTask : masterRecord.slaveTasks) {
-                if (slaveTask.subName.equals(subName)) //todo 这里移除了 必须是 处理中 的判断，要看对 同步业务的影响
-                    slaveTask.subStatus = status;
+                if (slaveTask.subName.equals(subName))
+                    return slaveTask;
+            }
+            return null;
+        }
+
+        synchronized void updateSlaveStatus(String masterName, String subName, String status) {
+            MasterRecord masterRecord = searchMaser(masterName);
+            for (SlaveRecord slave : masterRecord.slaveTasks) {
+                if (slave.subName.equals(subName)) //todo 这里移除了 必须是 处理中 的判断，要看对 同步业务的影响
+                    slave.subStatus = status;
             }
             System.out.printf("[%s] | 主业务 %s ｜ 子任务 %s 状态更新: %s%n",
                     Thread.currentThread().getName(), masterName, subName, status);
@@ -225,10 +234,9 @@ public class EvtTaskThreadTest {
                 // 4.等待所有业务完成
                 awaitCompletion();
 
-                System.out.printf("[%s] 所有业务处理完成%n", Thread.currentThread().getName());
+                System.out.printf("[%s] | 所有业务处理完成%n", Thread.currentThread().getName());
             } catch (Exception e) {
-                System.err.printf("[%s] 业务处理异常: %s%n",
-                        Thread.currentThread().getName(), e.getMessage());
+                System.out.printf("[%s] | Error:业务处理异常: %s%n", Thread.currentThread().getName(), e.getMessage());
                 e.printStackTrace();
             } finally {
                 shutdownExecutor();
@@ -237,8 +245,8 @@ public class EvtTaskThreadTest {
 
         /**
          * 初始化各业务的任务队列
-         * 特别说明：三个队列子业务是同一个引用，互相影响
-         *
+         * 特别说明：1.三个队列子业务是同一个引用，互相影响
+         * 2.数据库和队列是两个不同的引用，互不影响
          */
         private void initializeTaskQueues(List<MasterRecord> masterList) {
             for (MasterRecord master : masterList) {
@@ -317,7 +325,7 @@ public class EvtTaskThreadTest {
             element.subStatus = activeStatus;//影响异步子队列
             //2
             mockDataBase.updateMasterStatus(masterName, activeStatus);
-            mockDataBase.updateSubTaskStatus(masterName, master.slaveTasks.get(0).subName, activeStatus);
+            mockDataBase.updateSlaveStatus(masterName, master.slaveTasks.get(0).subName, activeStatus);
 
             System.out.printf("[%s] | 主业务 %s 激活%n",
                     Thread.currentThread().getName(), master.name);
@@ -383,27 +391,35 @@ public class EvtTaskThreadTest {
 
         /**
          * 处理前的校验
-         * 1.数据库主业务必须是处理中
-         * 2.全队列验证顺序，并且首元素（第一个子业务）必须是处理中
+         * 1.当前子业务必须是处理中
+         * 2.数据库主业务、子业务必须是处理中
+         * 3.全队列验证顺序，并且首元素（第一个子业务）必须是处理中 (1和3是同一个引用）
          * todo  异步任务还没执行完，同步子业务处理线程就会调用这里，导致校验报错
-         * todo  数据库主业务、子业务状态 应该和 主队列的状态应该对应起来
          */
-        private void checkStatusBeforeExecute(SlaveRecord slaveTask) {
-            String masterName = slaveTask.masterName;
-            String subName = slaveTask.subName;
+        private void checkStatusBeforeExecute(SlaveRecord slaveRecord) {
+            String masterName = slaveRecord.masterName;
+            String slaveName = slaveRecord.subName;
+            String slaveStatus = slaveRecord.subStatus;
+
             printLog(Thread.currentThread().getName(), "checkStatusBeforeExecute",
-                    masterName, subName + slaveTask.subStatus);
+                    masterName, slaveName + slaveStatus);
             //1
+            if (!slaveStatus.equals(activeStatus))
+                throw new RuntimeException("Error:当前子业务状态不是处理中！" + slaveStatus);
+            //2
             String masterStatus = mockDataBase.searchMaser(masterName).status;
             if (!masterStatus.equals(activeStatus))
-                throw new RuntimeException("Error:主业务状态不是处理中，无法执行！" +
-                        masterStatus);
-            //2
+                throw new RuntimeException("Error:数据库主业务状态不是处理中，无法执行！" + masterStatus);
+
+            String dbSlaveStatus = mockDataBase.searchSlave(masterName, slaveName).subStatus;
+            if (!dbSlaveStatus.equals(activeStatus))
+                throw new RuntimeException("Error:数据库子业务状态不是处理中，无法执行！" + dbSlaveStatus);
+            //3
             BlockingQueue<SlaveRecord> currentMasterAllSlaveQueue = allBizQueueMap.get(masterName);
             SlaveRecord activeSlave = currentMasterAllSlaveQueue.element();
 
             String activeSubName = activeSlave.subName;
-            if (!activeSubName.equals(subName))
+            if (!activeSubName.equals(slaveName))
                 throw new RuntimeException("Error:子业务执行时顺序有误！" + activeSubName);
 
             String activeSubStatus = activeSlave.subStatus;
@@ -427,6 +443,8 @@ public class EvtTaskThreadTest {
          * 处理失败，更新数据库
          * 1.更新当前子业务状态为 处理失败
          * 2.主业务状态更新为 处理失败
+         *
+         * todo 应该把队列下一个更新为失败 ？
          */
         private void failUpdateStatusFail(SlaveRecord currentSlave, String methodName) {
             try {
@@ -438,7 +456,7 @@ public class EvtTaskThreadTest {
                 if (!currentSlaveSubStatus.equals(activeStatus))
                     throw new RuntimeException("Error:当前子业务状态不是处理中，无法更新子业务状态为【处理失败】-" +
                             currentSlaveSubStatus + "-" + name + methodName);
-                mockDataBase.updateSubTaskStatus(masterName, subName, failStatus);
+                mockDataBase.updateSlaveStatus(masterName, subName, failStatus);
                 mockDataBase.updateMasterStatus(masterName, failStatus);
             } catch (Exception e) {
                 throw new RuntimeException("Error:failUpdateStatusFail处理失败！", e);
@@ -447,20 +465,17 @@ public class EvtTaskThreadTest {
 
         /**
          * 处理成功
-         * 1.更新当前子业务状态为 处理成功
-         * 2.从全队列中移除当前子业务
-         * 3.如果全队列为空，说明全部处理完了，需要更新主业务处理成功
-         * 4.否则激活全队列下一个子业务为 处理中
+         * 1.数据库更新当前子业务状态为处理成功
+         * 2.从全队列中移除当前子业务（不需要更新全队列的子业务状态）
+         * 3.如果全队列为空说明全部处理完了，需要数据库更新主业务处理成功
+         * 4.否则，激活全队列下一个子业务为处理中；同时更新数据库子业务为处理中
          */
         private void successTakeCurrentSlaveAndActiveNext(SlaveRecord currentSlaveRecord, String methodName) {
             String masterName = currentSlaveRecord.masterName;
             String subName = currentSlaveRecord.subName;
             String name = masterName + "-" + subName;
-            String currentSlaveSubStatus = currentSlaveRecord.subStatus;
             //1
-            if (!currentSlaveSubStatus.equals(activeStatus))
-                throw new RuntimeException("Error:当前子业务状态不是处理中，无法更新子业务状态为【处理成功】！");
-            mockDataBase.updateSubTaskStatus(masterName, subName, successStatus);
+            mockDataBase.updateSlaveStatus(masterName, subName, successStatus);
             //2
             BlockingQueue<SlaveRecord> allBizQueue = allBizQueueMap.get(masterName);
             try {
@@ -481,6 +496,7 @@ public class EvtTaskThreadTest {
                 throw new RuntimeException("Error:全队列下个子业务状态不是待处理，激活失败！" +
                         element.subName + "-" + element.subStatus + "-" + name + methodName);
             element.subStatus = activeStatus;
+            mockDataBase.updateSlaveStatus(masterName, element.subName, activeStatus);//数据库更新
 
             System.out.printf("[%s] | successTakeCurrentSlaveAndActiveNext element.subName-%s-%s%n",
                     Thread.currentThread().getName(), element.subName, element.subStatus);
@@ -574,12 +590,13 @@ public class EvtTaskThreadTest {
             executor.shutdown();
             try {
                 if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    System.out.printf("[%s] 线程池未及时关闭，执行强制关闭%n",
+                    System.out.printf("[%s] | 线程池未及时关闭，执行强制关闭%n",
                             Thread.currentThread().getName());
                     executor.shutdownNow();
                 }
-                System.out.printf("[%s] 线程池已关闭%n", Thread.currentThread().getName());
+                System.out.printf("[%s] | 线程池已关闭%n", Thread.currentThread().getName());
             } catch (InterruptedException e) {
+                System.out.printf("[%s] | Error:shutdownExecutor异常%n", Thread.currentThread().getName());
                 executor.shutdownNow();
                 Thread.currentThread().interrupt();
             }
