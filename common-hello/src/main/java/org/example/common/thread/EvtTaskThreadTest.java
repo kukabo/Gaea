@@ -163,7 +163,7 @@ public class EvtTaskThreadTest {
             );
         }
 
-        private void printLog(String threadName, String masterName, String subName, String methodName)  {
+        private void printLog(String threadName, String methodName, String masterName, String subName)  {
             if (masterName.equals("null")) {
                 System.out.printf("[%s-%s]%n", threadName, methodName);
                 return;
@@ -182,7 +182,7 @@ public class EvtTaskThreadTest {
          */
         public void execute() {
             try {
-                printLog(Thread.currentThread().getName(), "null", "null", "execute");
+                printLog(Thread.currentThread().getName(), "execute", "null", "null");
                 // 1.加载待处理业务
                 List<MasterRecord> pendingTasks = fetchPendingTasks();
                 if (pendingTasks.isEmpty()) {
@@ -195,7 +195,7 @@ public class EvtTaskThreadTest {
                 startAsyncSalveProcessors();
 
                 // 3.启动剩余所有同步子业务处理
-                //startSyncSalveProcessors();
+                startSyncSalveProcessors();
 
                 // 4.等待所有业务完成
                 awaitCompletion();
@@ -306,7 +306,7 @@ public class EvtTaskThreadTest {
          */
         private void startAsyncSalveProcessors() {
             printLog(Thread.currentThread().getName(),
-                    "null", "null", "startAsyncSalveProcessors");
+                    "startAsyncSalveProcessors","null", "null");
             //所有的异步子业务从队列中捞出，封装list
             List<SlaveRecord> aSyncList = new LinkedList<>();
             for (String masterName : aSyncBizQueueMap.keySet()) {
@@ -336,14 +336,14 @@ public class EvtTaskThreadTest {
          */
         private void processAsyncBizTask(List<SlaveRecord> aSyncSlaveRecords) {
             printLog(Thread.currentThread().getName(),
-                    "null", "null", "processAsyncBizTask");
+                    "processAsyncBizTask", "null", "null");
             for (SlaveRecord slaveRecord : aSyncSlaveRecords) {
                 String masterName = slaveRecord.masterName;
                 String subName = slaveRecord.subName;
                 String name = masterName + "-" + subName;
 
                 //1
-                checkStatusBeforeExecute(slaveRecord, "processAsyncBizTask");
+                checkStatusBeforeExecute(slaveRecord);
                 //2
                 mockDataBase.insertTaskInstance(slaveRecord);
                 try {
@@ -368,12 +368,13 @@ public class EvtTaskThreadTest {
          * 2.此时要执行的子业务状态也必须是 处理中（队列初始化时已经更新为 处理中）
          * 3.验证顺序，并且全队列的首元素（第一个子业务）必须是 处理中
          */
-        private void checkStatusBeforeExecute(SlaveRecord slaveTask, String methodName) {
+        private void checkStatusBeforeExecute(SlaveRecord slaveTask) {
             String masterName = slaveTask.masterName;
             String subName = slaveTask.subName;
             String name = masterName + "-" + subName;
             String masterStatus = mockDataBase.searchMaser(masterName).status;
             String subStatus = slaveTask.subStatus;
+            printLog(Thread.currentThread().getName(), "checkStatusBeforeExecute", masterName, subName);
             //1
             if (!masterStatus.equals(activeStatus))
                 throw new RuntimeException("Error:主业务状态不是处理中，无法执行！" +
@@ -435,7 +436,7 @@ public class EvtTaskThreadTest {
          * 1.更新当前子业务状态为 处理成功
          * 2.从全队列中移除当前子业务
          * 3.如果全队列为空，说明全部处理完了，需要更新主业务处理成功
-         * 4.否则激活下一个子业务
+         * 4.否则激活全队列下一个子业务为 处理中
          */
         private void successTakeCurrentSlaveAndActiveNext(SlaveRecord currentSlaveRecord, String methodName) {
             String masterName = currentSlaveRecord.masterName;
@@ -488,6 +489,9 @@ public class EvtTaskThreadTest {
          * 处理整个同步子业务
          */
         private void processSyncBizTask(String masterName) {
+
+            printLog(Thread.currentThread().getName(), "processSyncBizTask", masterName, "null");
+
             BlockingQueue<SlaveRecord> syncQueue = syncBizQueueMap.get(masterName);
             while (!syncQueue.isEmpty()) {
                 SlaveRecord syncSlaveRecord;
@@ -510,11 +514,12 @@ public class EvtTaskThreadTest {
             String slaveName = slaveTask.subName;
             String name = masterName + "-" + slaveName;
             String currentThread = Thread.currentThread().getName();
-            System.out.printf("[%s] | 主业务 %s | 【任务启动】%s%n",
-                    currentThread, masterName, slaveName);
+
+            printLog(currentThread, "executeSyncSlaveTask", masterName, slaveName);
+
             try {
                 //处理前校验
-                checkStatusBeforeExecute(slaveTask, "executeSyncSlaveTask");
+                checkStatusBeforeExecute(slaveTask);
                 // 模拟任务执行 (随机耗时)
                 int duration = ThreadLocalRandom.current().nextInt(1, 5);
                 System.out.printf("[%s] | 主业务 %s | 【任务执行】%s | 预计耗时: %d秒%n",
@@ -527,7 +532,7 @@ public class EvtTaskThreadTest {
                 //处理后执行成功
                 successTakeCurrentSlaveAndActiveNext(slaveTask, "-executeSyncSlaveTask");
             } catch (Exception e) {
-                System.out.printf("[%s] | 主业务 %s-%s 处理失败: %s%n",
+                System.out.printf("[%s] | Error:主业务 %s | 子业务%s  %s%n",
                         currentThread, masterName, slaveName, e.getMessage());
                 failUpdateStatusFail(slaveTask, "-executeSyncSlaveTask");
             }
