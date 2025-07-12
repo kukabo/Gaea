@@ -19,7 +19,7 @@ public class EvtTaskThreadTest {
     // 业务主表记录
     static class MasterRecord {
         String name;        // 业务名称
-        String status;      // 业务状态：待处理，处理中，处理成功，处理失败
+        volatile String status;      // 业务状态：待处理，处理中，处理成功，处理失败
         List<SlaveRecord> slaveTasks = new ArrayList<>(); // 子业务列表
 
         MasterRecord(String name, String status) {
@@ -36,7 +36,7 @@ public class EvtTaskThreadTest {
     static class SlaveRecord {
         String masterName;  // 所属业务名称
         String subName;     // 子业务名称
-        String subStatus;  //子业务状态：待处理，处理中，处理成功，处理失败
+        volatile String subStatus;  //子业务状态：待处理，处理中，处理成功，处理失败
 
         SlaveRecord(String masterName, String subName, String subStatus) {
             this.masterName = masterName;
@@ -178,13 +178,38 @@ public class EvtTaskThreadTest {
         }
 
         /**
+         * 从数据库加载待处理业务
+         * 深 copy，区分数据库和队列
+         */
+        private List<MasterRecord> searchMasterRecordsFromDB() {
+            List<MasterRecord> taskListFromDB = mockDataBase.searchPendingTasks();
+
+            List<MasterRecord> newMasterList = new ArrayList<>();
+            for (MasterRecord task : taskListFromDB) {
+                MasterRecord record = new MasterRecord(task.name, task.status);
+                for (SlaveRecord slaveTask : task.slaveTasks) {
+                    record.addSubTask(slaveTask.subName, slaveTask.subStatus);
+                }
+                newMasterList.add(record);
+            }
+
+            String taskNames = newMasterList.stream()
+                    .map(m -> m.name)
+                    .collect(Collectors.joining(", "));
+
+            System.out.printf("[%s] | 加载到 %d 个待处理业务: %s%n",
+                    Thread.currentThread().getName(), newMasterList.size(), taskNames);
+            return newMasterList;
+        }
+
+        /**
          * 业务逻辑
          */
         public void execute() {
             try {
                 printLog(Thread.currentThread().getName(), "execute", "null", "null");
                 // 1.加载待处理业务
-                List<MasterRecord> pendingTasks = fetchPendingTasks();
+                List<MasterRecord> pendingTasks = searchMasterRecordsFromDB();
                 if (pendingTasks.isEmpty()) {
                     System.out.printf("无主业务%n");
                     return;
@@ -195,7 +220,7 @@ public class EvtTaskThreadTest {
                 startAsyncSalveProcessors();
 
                 // 3.启动剩余所有同步子业务处理
-                startSyncSalveProcessors();
+                //startSyncSalveProcessors();
 
                 // 4.等待所有业务完成
                 awaitCompletion();
@@ -211,21 +236,9 @@ public class EvtTaskThreadTest {
         }
 
         /**
-         * 从数据库加载待处理业务
-         */
-        private List<MasterRecord> fetchPendingTasks() {
-            List<MasterRecord> tasks = mockDataBase.searchPendingTasks();
-            String taskNames = tasks.stream()
-                    .map(m -> m.name)
-                    .collect(Collectors.joining(", "));
-
-            System.out.printf("[%s] | 加载到 %d 个待处理业务: %s%n",
-                    Thread.currentThread().getName(), tasks.size(), taskNames);
-            return tasks;
-        }
-
-        /**
          * 初始化各业务的任务队列
+         * 特别说明：三个队列子业务是同一个引用，互相影响
+         *
          */
         private void initializeTaskQueues(List<MasterRecord> masterList) {
             for (MasterRecord master : masterList) {
@@ -234,9 +247,10 @@ public class EvtTaskThreadTest {
                             Thread.currentThread().getName(), master.name);
                     return;
                 }
-                initBizQueueMapAsync(master);
-                initBizQueueMapSync(master);
-                initBizQueueMapAll(master);
+                initAsyncQueueMap(master);
+                initSyncQueueMap(master);
+                initAllQueueMap(master);
+                activeMasterBefore(master);
             }
         }
 
@@ -244,7 +258,7 @@ public class EvtTaskThreadTest {
          * 把所有的异步子业务放入队列，封装到 aSyncBizQueueMap
          * 异步子业务必须是第一个，且只能有一个
          */
-        private void initBizQueueMapAsync(MasterRecord master) {
+        private void initAsyncQueueMap(MasterRecord master) {
             SlaveRecord aSyncSlaveRecord = master.slaveTasks.get(0);
             if (!aSyncSlaveRecord.subName.contains("异步")) {
                 System.out.printf("无异步任务需要处理" + master.name);
@@ -263,7 +277,7 @@ public class EvtTaskThreadTest {
          * 把所有的同步子业务放入队列，封装到 syncBizQueueMap
          * 异步子业务必须是第一个，且只能有一个
          */
-        private void initBizQueueMapSync(MasterRecord master) {
+        private void initSyncQueueMap(MasterRecord master) {
             ArrayList<SlaveRecord> syncRecords = new ArrayList<>(master.slaveTasks);
             SlaveRecord slaveRecord = syncRecords.get(0);
             if (slaveRecord.subName.contains("异步")) {
@@ -277,36 +291,42 @@ public class EvtTaskThreadTest {
 
         /**
          * 把所有的子业务放入队列，封装到 allBizQueueMap
-         * 1.主业务处理中
-         * 2.第一个子业务处理中
          */
-        private void initBizQueueMapAll(MasterRecord master) {
+        private void initAllQueueMap(MasterRecord master) {
             String masterName = master.name;
-            String masterStatus = master.status;
-            //主业务状态更新为 处理中
-            if (!masterStatus.equals(preStatus))
-                throw new RuntimeException("Error:主业务的初始状态不是待处理！" + masterStatus);
-            mockDataBase.updateMasterStatus(masterName, activeStatus);
-            //激活第一个子业务 处理中
-            List<SlaveRecord> slaveTasks = master.slaveTasks;
-            BlockingQueue<SlaveRecord> allBizQueue = new LinkedBlockingQueue<>(slaveTasks);//全队列
-            SlaveRecord element = allBizQueue.element();
-            if (!element.subStatus.equals(preStatus)) {
-                throw new RuntimeException("Error:全队列第一个子业务初始状态不是待处理！" +
-                        masterName + "-" + element.subName);
-            }
-            element.subStatus = activeStatus;
+            BlockingQueue<SlaveRecord> allBizQueue = new LinkedBlockingQueue<>(master.slaveTasks);//全队列
             allBizQueueMap.put(masterName, allBizQueue);
             System.out.printf("[%s] | 主业务 %s 全队列初始化 %d 个子业务%n",
                     Thread.currentThread().getName(), masterName, master.slaveTasks.size());
         }
 
         /**
+         * 首先激活【主业务和第一个子业务】，队列中的业务和数据库中的业务状态上保持一致
+         * 1.先更新队列
+         * 2.再更新数据库：主业务和子业务
+         */
+        private void activeMasterBefore(MasterRecord master) {
+            //1
+            String masterName = master.name;
+            BlockingQueue<SlaveRecord> allBizQueue = allBizQueueMap.get(masterName);
+            SlaveRecord element = allBizQueue.element();
+            if (!element.subStatus.equals(preStatus)) {
+                throw new RuntimeException("Error:全队列第一个子业务初始状态不是待处理！" +
+                        masterName + "-" + element.subName);
+            }
+            element.subStatus = activeStatus;//影响异步子队列
+            //2
+            mockDataBase.updateMasterStatus(masterName, activeStatus);
+            mockDataBase.updateSubTaskStatus(masterName, master.slaveTasks.get(0).subName, activeStatus);
+
+            System.out.printf("[%s] | 主业务 %s 激活%n",
+                    Thread.currentThread().getName(), master.name);
+        }
+
+        /**
          * 同一个子线程 执行全部的异步子业务
          */
         private void startAsyncSalveProcessors() {
-            printLog(Thread.currentThread().getName(),
-                    "startAsyncSalveProcessors","null", "null");
             //所有的异步子业务从队列中捞出，封装list
             List<SlaveRecord> aSyncList = new LinkedList<>();
             for (String masterName : aSyncBizQueueMap.keySet()) {
@@ -341,7 +361,6 @@ public class EvtTaskThreadTest {
                 String masterName = slaveRecord.masterName;
                 String subName = slaveRecord.subName;
                 String name = masterName + "-" + subName;
-
                 //1
                 checkStatusBeforeExecute(slaveRecord);
                 //2
@@ -364,67 +383,62 @@ public class EvtTaskThreadTest {
 
         /**
          * 处理前的校验
-         * 1.主业务必须是 处理中
-         * 2.此时要执行的子业务状态也必须是 处理中（队列初始化时已经更新为 处理中）
-         * 3.验证顺序，并且全队列的首元素（第一个子业务）必须是 处理中
+         * 1.数据库主业务必须是处理中
+         * 2.全队列验证顺序，并且首元素（第一个子业务）必须是处理中
+         * todo  异步任务还没执行完，同步子业务处理线程就会调用这里，导致校验报错
+         * todo  数据库主业务、子业务状态 应该和 主队列的状态应该对应起来
          */
         private void checkStatusBeforeExecute(SlaveRecord slaveTask) {
             String masterName = slaveTask.masterName;
             String subName = slaveTask.subName;
-            String name = masterName + "-" + subName;
-            String masterStatus = mockDataBase.searchMaser(masterName).status;
-            String subStatus = slaveTask.subStatus;
-            printLog(Thread.currentThread().getName(), "checkStatusBeforeExecute", masterName, subName);
+            printLog(Thread.currentThread().getName(), "checkStatusBeforeExecute",
+                    masterName, subName + slaveTask.subStatus);
             //1
+            String masterStatus = mockDataBase.searchMaser(masterName).status;
             if (!masterStatus.equals(activeStatus))
                 throw new RuntimeException("Error:主业务状态不是处理中，无法执行！" +
-                        masterStatus + "-" + name);
+                        masterStatus);
             //2
-            if (!subStatus.equals(activeStatus))
-                throw new RuntimeException("Error:子业务状态不是待处理，无法执行！" +
-                        subStatus + "-" + name);
-            //3
             BlockingQueue<SlaveRecord> currentMasterAllSlaveQueue = allBizQueueMap.get(masterName);
-            SlaveRecord activeSlaveRecord = currentMasterAllSlaveQueue.element();
-            String activeSubName = activeSlaveRecord.subName;
-            String activeSubStatus = activeSlaveRecord.subStatus;
+            SlaveRecord activeSlave = currentMasterAllSlaveQueue.element();
+
+            String activeSubName = activeSlave.subName;
             if (!activeSubName.equals(subName))
-                throw new RuntimeException("Error:子业务执行时顺序有误！" +
-                        activeSubName + "---" + name);
+                throw new RuntimeException("Error:子业务执行时顺序有误！" + activeSubName);
+
+            String activeSubStatus = activeSlave.subStatus;
             if (!activeSubStatus.equals(activeStatus))
-                throw new RuntimeException("Error:没有完成子业务激活！" +
-                        activeSubStatus + "-" + name);
+                throw new RuntimeException("Error:没有完成子业务激活！" + activeSubStatus);
         }
 
         /**
          * 如果处理失败，更新主业务失败
          * 如果处理成功，需要激活下一个子业务处理中
          */
-        private void aSyncProcessStatusAfterExecute(SlaveRecord currentSlaveRecord) {
-            if (mockDataBase.searchInstanceStatus(currentSlaveRecord).equals(failStatus)) {
-                failUpdateStatusFail(currentSlaveRecord, "-aSyncProcessStatusAfterExecute");
+        private void aSyncProcessStatusAfterExecute(SlaveRecord currentSlave) {
+            if (mockDataBase.searchInstanceStatus(currentSlave).equals(failStatus)) {
+                failUpdateStatusFail(currentSlave, "-aSyncProcessStatusAfterExecute");
             } else {
-                successTakeCurrentSlaveAndActiveNext(currentSlaveRecord, "-aSyncProcessStatusAfterExecute");
+                successTakeCurrentSlaveAndActiveNext(currentSlave, "-aSyncProcessStatusAfterExecute");
             }
         }
 
         /**
-         * 处理失败
+         * 处理失败，更新数据库
          * 1.更新当前子业务状态为 处理失败
          * 2.主业务状态更新为 处理失败
          */
-        private void failUpdateStatusFail(SlaveRecord currentSlaveRecord, String methodName) {
+        private void failUpdateStatusFail(SlaveRecord currentSlave, String methodName) {
             try {
-                String masterName = currentSlaveRecord.masterName;
-                String subName = currentSlaveRecord.subName;
+                String masterName = currentSlave.masterName;
+                String subName = currentSlave.subName;
                 String name = masterName + "-" + subName;
 
-                String currentSlaveSubStatus = currentSlaveRecord.subStatus;
+                String currentSlaveSubStatus = currentSlave.subStatus;
                 if (!currentSlaveSubStatus.equals(activeStatus))
                     throw new RuntimeException("Error:当前子业务状态不是处理中，无法更新子业务状态为【处理失败】-" +
                             currentSlaveSubStatus + "-" + name + methodName);
                 mockDataBase.updateSubTaskStatus(masterName, subName, failStatus);
-
                 mockDataBase.updateMasterStatus(masterName, failStatus);
             } catch (Exception e) {
                 throw new RuntimeException("Error:failUpdateStatusFail处理失败！", e);
@@ -467,6 +481,9 @@ public class EvtTaskThreadTest {
                 throw new RuntimeException("Error:全队列下个子业务状态不是待处理，激活失败！" +
                         element.subName + "-" + element.subStatus + "-" + name + methodName);
             element.subStatus = activeStatus;
+
+            System.out.printf("[%s] | successTakeCurrentSlaveAndActiveNext element.subName-%s-%s%n",
+                    Thread.currentThread().getName(), element.subName, element.subStatus);
         }
 
         /**
@@ -575,4 +592,11 @@ public class EvtTaskThreadTest {
     public static void main(String[] args) {
         new BusinessProcessor().execute();
     }
+
+    /**
+     * 待处理
+     * 第一个更新为处理中
+     * 处理完了更新已完成
+     * 并把下一个更新为处理中
+     */
 }
