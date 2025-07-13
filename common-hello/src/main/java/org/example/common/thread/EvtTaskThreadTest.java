@@ -85,7 +85,7 @@ public class EvtTaskThreadTest {
             OldTaskInstance oldTaskInstance = oldTaskInstanceMap.get(slaveRecord.subName);
             if (oldTaskInstance != null) {
                 oldTaskInstance.instanceStatus = instanceStatus;
-                System.out.printf("[%s] 异步子业务 %s 状态更新: %s%n",
+                System.out.printf("[%s] | 异步子业务 %s 状态更新: %s%n",
                         Thread.currentThread().getName(), slaveRecord.subName, instanceStatus);
             }
         }
@@ -107,7 +107,7 @@ public class EvtTaskThreadTest {
             MasterRecord record = searchMaser(name);
             if (record != null) {
                 record.status = status;
-                System.out.printf("[%s] | 主业务 %s 状态更新: %s%n",
+                System.out.printf("[%s] | 主业务 %s 数据库状态更新: %s%n",
                         Thread.currentThread().getName(), name, status);
             }
         }
@@ -124,10 +124,10 @@ public class EvtTaskThreadTest {
         synchronized void updateSlaveStatus(String masterName, String subName, String status) {
             MasterRecord masterRecord = searchMaser(masterName);
             for (SlaveRecord slave : masterRecord.slaveTasks) {
-                if (slave.subName.equals(subName)) //todo 这里移除了 必须是 处理中 的判断，要看对 同步业务的影响
+                if (slave.subName.equals(subName))
                     slave.subStatus = status;
             }
-            System.out.printf("[%s] | 主业务 %s ｜ 子任务 %s 状态更新: %s%n",
+            System.out.printf("[%s] | 主业务 %s | 子任务 %s 数据库状态更新: %s%n",
                     Thread.currentThread().getName(), masterName, subName, status);
         }
     }
@@ -229,14 +229,14 @@ public class EvtTaskThreadTest {
                 startAsyncSalveProcessors();
 
                 // 3.启动剩余所有同步子业务处理
-                //startSyncSalveProcessors();
+                startSyncSalveProcessors();
 
                 // 4.等待所有业务完成
                 awaitCompletion();
 
                 System.out.printf("[%s] | 所有业务处理完成%n", Thread.currentThread().getName());
             } catch (Exception e) {
-                System.out.printf("[%s] | Error:业务处理异常: %s%n", Thread.currentThread().getName(), e.getMessage());
+                System.out.printf("[%s] | Error:业务处理异常！%n", Thread.currentThread().getName());
                 e.printStackTrace();
             } finally {
                 shutdownExecutor();
@@ -326,9 +326,6 @@ public class EvtTaskThreadTest {
             //2
             mockDataBase.updateMasterStatus(masterName, activeStatus);
             mockDataBase.updateSlaveStatus(masterName, master.slaveTasks.get(0).subName, activeStatus);
-
-            System.out.printf("[%s] | 主业务 %s 激活%n",
-                    Thread.currentThread().getName(), master.name);
         }
 
         /**
@@ -370,12 +367,12 @@ public class EvtTaskThreadTest {
                 String subName = slaveRecord.subName;
                 String name = masterName + "-" + subName;
                 //1
-                checkStatusBeforeExecute(slaveRecord);
+                checkAsyncStatusBeforeExecute(slaveRecord);
                 //2
                 mockDataBase.insertTaskInstance(slaveRecord);
                 try {
-                    System.out.printf("[%s]模拟业务逻辑处理睡眠 9s%n", Thread.currentThread().getName());
-                    Thread.sleep(9000);
+                    System.out.printf("[%s]模拟业务逻辑处理睡眠9s%n", Thread.currentThread().getName());
+                    Thread.sleep(1000*9);
                 } catch (InterruptedException e) {
                     throw new RuntimeException("Error:中断异常！" + name);
                 }
@@ -394,14 +391,13 @@ public class EvtTaskThreadTest {
          * 1.当前子业务必须是处理中
          * 2.数据库主业务、子业务必须是处理中
          * 3.全队列验证顺序，并且首元素（第一个子业务）必须是处理中 (1和3是同一个引用）
-         * todo  异步任务还没执行完，同步子业务处理线程就会调用这里，导致校验报错
          */
-        private void checkStatusBeforeExecute(SlaveRecord slaveRecord) {
+        private void checkAsyncStatusBeforeExecute(SlaveRecord slaveRecord) {
             String masterName = slaveRecord.masterName;
             String slaveName = slaveRecord.subName;
             String slaveStatus = slaveRecord.subStatus;
 
-            printLog(Thread.currentThread().getName(), "checkStatusBeforeExecute",
+            printLog(Thread.currentThread().getName(), "checkAsyncStatusBeforeExecute",
                     masterName, slaveName + slaveStatus);
             //1
             if (!slaveStatus.equals(activeStatus))
@@ -487,6 +483,7 @@ public class EvtTaskThreadTest {
             }
             //3
             if (allBizQueue.size() == 0) {
+                System.out.printf("[%s] | 主业务 %s ｜ 全队列为空%n", Thread.currentThread().getName(), masterName);
                 mockDataBase.updateMasterStatus(masterName, successStatus);
                 return;
             }
@@ -496,25 +493,64 @@ public class EvtTaskThreadTest {
                 throw new RuntimeException("Error:全队列下个子业务状态不是待处理，激活失败！" +
                         element.subName + "-" + element.subStatus + "-" + name + methodName);
             element.subStatus = activeStatus;
+            System.out.printf("[%s] | 主业务 %s ｜ 子业务%s 队列更新状态为%s%n",
+                    Thread.currentThread().getName(), masterName, element.subName, activeStatus);
             mockDataBase.updateSlaveStatus(masterName, element.subName, activeStatus);//数据库更新
-
-            System.out.printf("[%s] | successTakeCurrentSlaveAndActiveNext element.subName-%s-%s%n",
-                    Thread.currentThread().getName(), element.subName, element.subStatus);
         }
 
         /**
          * 为每个主业务开启一个线程，处理此主业务下的同步子业务
+         * 1.for循环处理：
+             * 1).记录异步出错的主业务个数failNum
+             * 2).如果当前同步子业务首元素还未激活（处理中），说明异步子业务还未处理完，跳过
+             * 3).如果activeFutureMap存在说明执行过，不能重复执行，跳过
+             * 4).开启线程执行
+         * 2.如果异步子任务还没有全部处理完，递归调用
          */
         private void startSyncSalveProcessors() {
+            int failNum = 0;
             for (String masterName : syncBizQueueMap.keySet()) {
+
+                String masterStatus = mockDataBase.searchMaser(masterName).status;
+                if (masterStatus.equals(failStatus)) {
+                    System.out.printf("[%s] ｜ 主业务 %s %s 不可处理！%n",
+                            Thread.currentThread().getName(), masterName, masterStatus);
+                    failNum ++;
+                }
+
+                BlockingQueue<SlaveRecord> syncQueue = syncBizQueueMap.get(masterName);
+                SlaveRecord dbSlave = mockDataBase.searchSlave(masterName, syncQueue.element().subName);
+                if (!dbSlave.subStatus.equals(activeStatus)) {
+                    System.out.printf("[%s] | 主业务 %s | 子业务 %s 等待异步子业务结束！%n",
+                            Thread.currentThread().getName(), masterName, dbSlave.subName);
+                    continue;
+                }
+
+                if (activeFutureMap.get(masterName) != null) {
+                    System.out.printf("[%s] | 主业务 %s | 子业务 %s 已经执行！%n",
+                            Thread.currentThread().getName(), masterName, dbSlave.subName);
+                    continue;
+                }
+
                 //一个主业务，开启一个线程处理
                 CompletableFuture<Void> future = CompletableFuture.runAsync(
                         () -> processSyncBizTask(masterName), executor);
+
                 //记录处理中
                 activeFutureMap.put(masterName, future);
-
                 System.out.printf("[%s] ｜ 主业务 %s 已启动处理流程%n",
                         Thread.currentThread().getName(), masterName);
+            }
+
+            // 减1是因为异步也放到了activeFutureMap，需要排除
+            if (activeFutureMap.size() - 1 + failNum != syncBizQueueMap.keySet().size()) {
+                try {
+                    System.out.printf("[%s] | 等待异步子业务结束，时长1分钟！%n", Thread.currentThread().getName());
+                    Thread.sleep(1000*60);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                startSyncSalveProcessors();
             }
         }
 
@@ -552,7 +588,7 @@ public class EvtTaskThreadTest {
 
             try {
                 //处理前校验
-                checkStatusBeforeExecute(slaveTask);
+                checkAsyncStatusBeforeExecute(slaveTask);
                 // 模拟任务执行 (随机耗时)
                 int duration = ThreadLocalRandom.current().nextInt(1, 5);
                 System.out.printf("[%s] | 主业务 %s | 【任务执行】%s | 预计耗时: %d秒%n",
@@ -609,11 +645,4 @@ public class EvtTaskThreadTest {
     public static void main(String[] args) {
         new BusinessProcessor().execute();
     }
-
-    /**
-     * 待处理
-     * 第一个更新为处理中
-     * 处理完了更新已完成
-     * 并把下一个更新为处理中
-     */
 }
