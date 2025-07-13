@@ -439,8 +439,10 @@ public class EvtTaskThreadTest {
          * 处理失败，更新数据库
          * 1.更新当前子业务状态为 处理失败
          * 2.主业务状态更新为 处理失败
-         *
-         * todo 应该把队列下一个更新为失败 ？
+         * 注意：不需要把队列下一个子业务更新为失败，报错的是当前子业务；只需在当前子业务执行前校验是否激活。
+
+         * todo 1.如果主业务 A 有 2 个异步子业务，第一个报错了，后续还能否正常运行？
+         * 2.同一个主业务的多个异步子业务，是否能并行执行？
          */
         private void failUpdateStatusFail(SlaveRecord currentSlave, String methodName) {
             try {
