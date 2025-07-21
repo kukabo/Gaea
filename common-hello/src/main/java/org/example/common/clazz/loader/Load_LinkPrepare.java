@@ -1,4 +1,4 @@
-package org.example.common.classLoader;
+package org.example.common.clazz.loader;
 
 //演示 类加载 连接的准备阶段
 public class Load_LinkPrepare {

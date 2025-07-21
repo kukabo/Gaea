@@ -1,4 +1,4 @@
-package org.example.common.classLoader;
+package org.example.common.clazz.loader;
 
 import org.example.common.utils.InputStreamUtil;
 

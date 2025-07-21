@@ -134,7 +134,7 @@ public class EvtTaskThreadTest {
 
     // 业务处理类
     static class BusinessProcessor {
-        private final ExecutorService executor;
+        private final ExecutorService threadPoolExecutor;
         private final DatabaseSimulator mockDataBase = new DatabaseSimulator();
 
         // 全部业务，子业务按存放顺序执行，已执行的会移除队列并且激活下一个子业务处理中，全部处理完后应该是null
@@ -146,7 +146,7 @@ public class EvtTaskThreadTest {
         private final Map<String, CompletableFuture<Void>> activeFutureMap = new ConcurrentHashMap<>();
 
         public BusinessProcessor() {
-            executor = createConfiguredThreadPool();
+            threadPoolExecutor = createConfiguredThreadPool();
             mockDataBase.insertMasterData();
         }
 
@@ -348,7 +348,7 @@ public class EvtTaskThreadTest {
             //线程处理
             if (!aSyncList.isEmpty()) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(
-                        () -> processAsyncBizTask(aSyncList), executor);
+                        () -> processAsyncBizTask(aSyncList), threadPoolExecutor);
                 activeFutureMap.put("Async", future);
             }
         }
@@ -536,7 +536,7 @@ public class EvtTaskThreadTest {
 
                 //一个主业务，开启一个线程处理
                 CompletableFuture<Void> future = CompletableFuture.runAsync(
-                        () -> processSyncBizTask(masterName), executor);
+                        () -> processSyncBizTask(masterName), threadPoolExecutor);
 
                 //记录处理中
                 activeFutureMap.put(masterName, future);
@@ -625,17 +625,17 @@ public class EvtTaskThreadTest {
          * 关闭线程池
          */
         private void shutdownExecutor() {
-            executor.shutdown();
+            threadPoolExecutor.shutdown();
             try {
-                if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                if (!threadPoolExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
                     System.out.printf("[%s] | 线程池未及时关闭，执行强制关闭%n",
                             Thread.currentThread().getName());
-                    executor.shutdownNow();
+                    threadPoolExecutor.shutdownNow();
                 }
                 System.out.printf("[%s] | 线程池已关闭%n", Thread.currentThread().getName());
             } catch (InterruptedException e) {
                 System.out.printf("[%s] | Error:shutdownExecutor异常%n", Thread.currentThread().getName());
-                executor.shutdownNow();
+                threadPoolExecutor.shutdownNow();
                 Thread.currentThread().interrupt();
             }
         }

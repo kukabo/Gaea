@@ -1,4 +1,4 @@
-package org.example.common.bean.classLoader;
+package org.example.common.bean.clazz.loader;
 
 public class BrokenClassABean {
 

@@ -1,4 +1,4 @@
-package org.example.common.functionIface;
+package org.example.common.function.iface;
 
 
 /**

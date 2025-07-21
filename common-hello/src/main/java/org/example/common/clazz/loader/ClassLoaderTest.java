@@ -1,8 +1,8 @@
-package org.example.common.classLoader;
+package org.example.common.clazz.loader;
 
-import org.example.common.bean.classLoader.ChildClassBean;
-import org.example.common.bean.classLoader.ParentClassBean;
-import org.example.common.bean.classLoader.SwapClassBean;
+import org.example.common.bean.clazz.loader.ChildClassBean;
+import org.example.common.bean.clazz.loader.ParentClassBean;
+import org.example.common.bean.clazz.loader.SwapClassBean;
 
 public class ClassLoaderTest {
     public static void main(String[] args) {

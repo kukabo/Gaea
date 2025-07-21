@@ -1,4 +1,4 @@
-package org.example.common.classLoader;
+package org.example.common.clazz.loader;
 
 /*
  * 验证：一个类的 <clinit>()方法 只被执行一次，会通过执行加锁实现

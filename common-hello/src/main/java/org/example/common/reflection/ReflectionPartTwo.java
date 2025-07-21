@@ -1,6 +1,6 @@
 package org.example.common.reflection;
 
-import org.example.common.bean.classLoader.SwapClassBean;
+import org.example.common.bean.clazz.loader.SwapClassBean;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;

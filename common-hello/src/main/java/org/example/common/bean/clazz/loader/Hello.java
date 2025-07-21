@@ -1,4 +1,4 @@
-package org.example.common.bean.classLoader;
+package org.example.common.bean.clazz.loader;
 
 public class Hello {
 
@@ -19,7 +19,7 @@ public class Hello {
 
     public void add() {
         try {
-            System.out.println("add 方法" + Class.forName("org.example.common.bean.classLoader.Hello").getClassLoader());
+            System.out.println("add 方法" + Class.forName("org.example.common.bean.clazz.loader.Hello").getClassLoader());
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }

@@ -1,4 +1,4 @@
-import org.example.common.functionIface.MyFunctionInterface;
+import org.example.common.function.iface.MyFunctionInterface;
 import org.junit.Test;
 
 public class FunctionInterfaceTest {

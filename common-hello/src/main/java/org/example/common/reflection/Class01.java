@@ -2,7 +2,7 @@ package org.example.common.reflection;
 
 //演示 Class的方法，和获取 Class对象的几种方式
 
-import org.example.common.bean.classLoader.SwapClassBean;
+import org.example.common.bean.clazz.loader.SwapClassBean;
 
 public class Class01 {
 

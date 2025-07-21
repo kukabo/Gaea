@@ -1,5 +1,5 @@
-import org.example.common.classLoader.CustomBrokenClassLoader;
-import org.example.common.classLoader.CustomClassLoader;
+import org.example.common.clazz.loader.CustomBrokenClassLoader;
+import org.example.common.clazz.loader.CustomClassLoader;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;

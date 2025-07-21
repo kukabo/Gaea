@@ -1,4 +1,4 @@
-package org.example.common.fileIO;
+package org.example.common.file.io;
 
 import org.junit.Test;
 
