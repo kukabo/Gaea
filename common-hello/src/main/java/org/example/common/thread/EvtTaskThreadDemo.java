@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 /**
  * 线程池业务任务
  */
-public class EvtTaskThreadTest {
+public class EvtTaskThreadDemo {
 
     private static final String preStatus = "待处理";
     private static final String activeStatus = "处理中";
@@ -611,10 +611,17 @@ public class EvtTaskThreadTest {
 
         /**
          * 等待所有业务完成
+         *
+         * 比较 Future 和 CompletableFuture：
+         * 1.Future类型的实例代表一个未来能获取结果的对象
+         * 2.Future获得异步执行结果时，要么调用阻塞方法get()，要么轮询看isDone()是否为true，这两种方法都不是很好，因为主线程也会被迫等待
+         * 3.CompletableFuture，异步任务结束 或 异步任务出错时，会自动回调某个对象的方法；
+         * 4.CompletableFuture，主线程设置好回调后，不再关心异步任务的执行
          */
         private void awaitCompletion() {
             CompletableFuture<?>[] futures = activeFutureMap.values().toArray(new CompletableFuture[0]);
             try {
+                // 获取结果，但只等待30分钟
                 CompletableFuture.allOf(futures).get(30, TimeUnit.MINUTES);
             } catch (Exception e) {
                 throw new RuntimeException("Error:awaitCompletion", e);
